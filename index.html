@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Snake UMG</title>
+  <style>
+    body {
+      background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      letter-spacing: 2px;
+      text-shadow: 1px 1px 2px #fff8;
+    }
+    #gameCanvas {
+      background: #fff;
+      border-radius: 24px;
+      box-shadow: 0 8px 32px #0002;
+      margin-bottom: 16px;
+      border: 4px solid #fcb6c2;
+      transition: box-shadow 0.3s;
+    }
+    #score {
+      font-size: 1.3em;
+      color: #ff6f91;
+      margin-bottom: 10px;
+      font-weight: bold;
+      text-shadow: 1px 1px 2px #fff8;
+    }
+    #restartBtn {
+      background: #ff6f91;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 10px 24px;
+      font-size: 1em;
+      cursor: pointer;
+      box-shadow: 0 2px 8px #ff6f9144;
+      transition: background 0.2s;
+      display: none;
+    }
+    #restartBtn:hover {
+      background: #ffb6b9;
+    }
+  </style>
+</head>
+<body>
+  <h1>🐍 Snake Pastel</h1>
+  <div id="score">Puntaje: 0</div>
+  <canvas id="gameCanvas" width="400" height="400"></canvas>
+  <button id="restartBtn">Reiniciar</button>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const restartBtn = document.getElementById('restartBtn');
+
+    const gridSize = 20;
+    const tileCount = canvas.width / gridSize;
+    let snake, direction, food, score, gameOver, nextDir, animationId;
+    let speed, minSpeed = 60;
+
+    function pastelColor(i) {
+      // Genera colores pastel suaves para la serpiente
+      const colors = ['#ffb6b9', '#fae3d9', '#bbded6', '#8ac6d1', '#ffd6e0', '#a8edea'];
+      return colors[i % colors.length];
+    }
+
+    function resetGame() {
+      snake = [{x: 10, y: 10}];
+      direction = {x: 1, y: 0};
+      nextDir = direction;
+      food = randomFood();
+      score = 0;
+      gameOver = false;
+      speed = 180; // velocidad inicial
+      scoreEl.textContent = 'Puntaje: 0';
+      restartBtn.style.display = 'none';
+      cancelAnimationFrame(animationId);
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function randomFood() {
+      let pos;
+      do {
+        pos = {
+          x: Math.floor(Math.random() * tileCount),
+          y: Math.floor(Math.random() * tileCount)
+        };
+      } while (snake.some(seg => seg.x === pos.x && seg.y === pos.y));
+      return pos;
+    }
+
+    function draw() {
+      // Fondo
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Comida
+      ctx.save();
+      ctx.shadowColor = "#ffb6b9";
+      ctx.shadowBlur = 16;
+      ctx.fillStyle = "#ffb6b9";
+      ctx.beginPath();
+      ctx.arc(
+        food.x * gridSize + gridSize / 2,
+        food.y * gridSize + gridSize / 2,
+        gridSize / 2.5, 0, Math.PI * 2
+      );
+      ctx.fill();
+      ctx.restore();
+
+      // Serpiente
+      snake.forEach((seg, i) => {
+        ctx.save();
+        ctx.shadowColor = pastelColor(i);
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = pastelColor(i);
+        ctx.beginPath();
+        ctx.arc(
+          seg.x * gridSize + gridSize / 2,
+          seg.y * gridSize + gridSize / 2,
+          gridSize / 2.2, 0, Math.PI * 2
+        );
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // Ojos de la cabeza
+      const head = snake[0];
+      ctx.save();
+      ctx.fillStyle = "#333";
+      let eyeOffsetX = direction.x === 0 ? 6 : 0;
+      let eyeOffsetY = direction.y === 0 ? 6 : 0;
+      ctx.beginPath();
+      ctx.arc(head.x * gridSize + gridSize / 2 - eyeOffsetX, head.y * gridSize + gridSize / 2 - eyeOffsetY, 2, 0, Math.PI * 2);
+      ctx.arc(head.x * gridSize + gridSize / 2 + eyeOffsetX, head.y * gridSize + gridSize / 2 + eyeOffsetY, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function gameLoop() {
+      if (gameOver) return;
+      // Mover serpiente
+      direction = nextDir;
+      const newHead = {
+        x: snake[0].x + direction.x,
+        y: snake[0].y + direction.y
+      };
+
+      // Colisión con paredes
+      if (
+        newHead.x < 0 || newHead.x >= tileCount ||
+        newHead.y < 0 || newHead.y >= tileCount
+      ) {
+        endGame();
+        return;
+      }
+
+      // Colisión con sí misma
+      if (snake.some(seg => seg.x === newHead.x && seg.y === newHead.y)) {
+        endGame();
+        return;
+      }
+
+      snake.unshift(newHead);
+
+      // Comer comida
+      if (newHead.x === food.x && newHead.y === food.y) {
+        score++;
+        scoreEl.textContent = 'Puntaje: ' + score;
+        food = randomFood();
+        speed = Math.max(minSpeed, speed - 8); // Aumentar velocidad
+      } else {
+        snake.pop();
+      }
+
+      draw();
+      animationId = requestAnimationFrame(() => setTimeout(gameLoop, speed));
+    }
+
+    function endGame() {
+      gameOver = true;
+      ctx.save();
+      ctx.globalAlpha = 0.7;
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "#ff6f91";
+      ctx.font = "bold 2em 'Segoe UI', sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("¡Fin del juego!", canvas.width / 2, canvas.height / 2 - 10);
+      ctx.font = "1.2em 'Segoe UI', sans-serif";
+      ctx.fillText("Puntaje: " + score, canvas.width / 2, canvas.height / 2 + 30);
+      ctx.restore();
+      restartBtn.style.display = 'inline-block';
+    }
+
+    document.addEventListener('keydown', e => {
+      if (gameOver) return;
+      switch (e.key) {
+        case 'ArrowUp':
+        case 'w':
+          if (direction.y !== 1) nextDir = {x: 0, y: -1};
+          break;
+        case 'ArrowDown':
+        case 's':
+          if (direction.y !== -1) nextDir = {x: 0, y: 1};
+          break;
+        case 'ArrowLeft':
+        case 'a':
+          if (direction.x !== 1) nextDir = {x: -1, y: 0};
+          break;
+        case 'ArrowRight':
+        case 'd':
+          if (direction.x !== -1) nextDir = {x: 1, y: 0};
+          break;
+      }
+    });
+
+    restartBtn.addEventListener('click', resetGame);
+
+    // Iniciar juego
+    resetGame();
+  </script>
+</body>
+</html>
